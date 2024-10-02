@@ -1,21 +1,24 @@
 # CursorWave
 
-CursorWave is a simple Python application that simulates left and right arrow key presses in a specified application window. It is particularly useful for keeping a console window active or for other automation tasks.
+CursorWave is a Python application that simulates a wave movement (left and right arrow keys) in a specified application window. This tool is particularly useful for keeping the application active and engaged, such as during presentations or coding sessions.
 
 ## Features
 
-- **Simulates key presses**: Automatically sends left and right arrow key presses to a specified application.
-- **User-friendly GUI**: Built with Tkinter for a simple and intuitive interface.
-- **Customizable application target**: Allows you to specify which application window to send key presses to.
+- Simulate left and right arrow key presses in the specified application window.
+- The application detects whether the specified window is currently focused before executing key presses.
+- User-friendly GUI built with Tkinter for easy interaction.
+- Log file generated to track actions and events.
 
 ## Requirements
 
-To run the CursorWave application, you need to have Python installed on your system. The application uses the following libraries:
+To run CursorWave, you will need Python installed on your machine. The following packages are required:
 
-- `tkinter` (included with standard Python installations)
-- `pywin32` (to interact with Windows GUI)
+- `pyautogui`
+- `pygetwindow`
+- `pywin32`
+- `Pillow` (optional, only if you need image processing features)
 
-You can install the required external library by running:
+You can install the required packages using the following command:
 
 ```bash
-pip install pywin32
+pip install -r requirements.txt
