@@ -3,46 +3,53 @@ import time
 import tkinter as tk
 from tkinter import messagebox, Frame, font
 import webbrowser
-import logging
-import os
 import win32gui
 import win32api
 import win32con
-import pyautogui  # Import pyautogui
-
-log_path = os.path.join(os.getcwd(), 'app.log')  # Save log in the current directory
-logging.basicConfig(filename=log_path, level=logging.DEBUG)
 
 # Global flag to control the simulation
 running = False
 
-def find_window_by_title(title):
-    hwnd = None
+def find_windows_by_title(title):
+    hwnds = []
 
     def enum_windows_callback(handle, extra):
-        nonlocal hwnd
         window_title = win32gui.GetWindowText(handle)
         if title in window_title:
-            hwnd = handle
+            hwnds.append(handle)
 
     win32gui.EnumWindows(enum_windows_callback, None)
-    return hwnd
+    return hwnds
+
+def ensure_num_lock_off():
+    num_lock_state = win32api.GetKeyState(0x90)  # 0x90 is the virtual key code for Num Lock
+    if num_lock_state:  # If Num Lock is on
+        win32api.keybd_event(0x90, 0, 0, 0)  # Press down Num Lock
+        win32api.keybd_event(0x90, 0, win32con.KEYEVENTF_KEYUP, 0)  # Release Num Lock
+        time.sleep(0.5)  # Optional: sleep to ensure the state change is processed
 
 # Function to simulate key presses in the specified application
-def send_keys_to_application(application_name):
-    hwnd = find_window_by_title(application_name)  # Look for a window with the given title
+def send_keys_to_application(hwnd):
     if hwnd:
-        logging.info(f"Found window with handle: {hwnd}")
-        # Simulate pressing left and right arrow keys
-        pyautogui.press('left')
-        pyautogui.press('left')
-        time.sleep(0.5)  # Short delay between key presses
-        pyautogui.press('right')
-        pyautogui.press('right')
-        logging.info(f"Simulated left and right arrow key presses in {application_name}.")
+        ensure_num_lock_off()
+        print("pressed")
+        # Simulate left arrow key press
+        win32api.keybd_event(win32con.VK_LEFT, 0, 0, 0)  # Press down left arrow
+        win32api.keybd_event(win32con.VK_LEFT, 0, win32con.KEYEVENTF_KEYUP, 0)  # Release left arrow
+        time.sleep(0.1)
+        win32api.keybd_event(win32con.VK_LEFT, 0, 0, 0)  # Press down left arrow
+        win32api.keybd_event(win32con.VK_LEFT, 0, win32con.KEYEVENTF_KEYUP, 0)  # Release left arrow
+        time.sleep(0.5)
+        
+        # Simulate right arrow key press
+        win32api.keybd_event(win32con.VK_RIGHT, 0, 0, 0)  # Press down right arrow
+        win32api.keybd_event(win32con.VK_RIGHT, 0, win32con.KEYEVENTF_KEYUP, 0)  # Release right arrow
+        time.sleep(0.1)
+        win32api.keybd_event(win32con.VK_RIGHT, 0, 0, 0)  # Press down right arrow
+        win32api.keybd_event(win32con.VK_RIGHT, 0, win32con.KEYEVENTF_KEYUP, 0)  # Release right arrow
+        time.sleep(0.5)
     else:
-        print(f"{application_name} window not found!")
-        logging.warning(f"{application_name} window not found!")
+        messagebox.showinfo("CursorWave Error", f"{win32gui.GetWindowText(hwnd)} window not found!")
 
 def get_current_focused_application():
     hwnd = win32gui.GetForegroundWindow()  # Get the handle of the currently focused window
@@ -50,9 +57,8 @@ def get_current_focused_application():
     return window_title
 
 # Function to repeatedly simulate key presses
-def simulate_keypresses(application_name, interval):
+def simulate_keypresses(hwnd, interval):
     global running
-    hwnd = find_window_by_title(application_name)  
     if hwnd:
         try:
             time.sleep(0.1)  # Short delay to ensure the window is in focus
@@ -61,41 +67,51 @@ def simulate_keypresses(application_name, interval):
             print("window minimised")
         
     while running:
-        inputAppId = find_window_by_title(application_name) 
-        inputAppName = win32gui.GetWindowText(inputAppId)
-        if inputAppName == get_current_focused_application():
-            send_keys_to_application(application_name)
-            time.sleep(interval)  # Wait for the specified interval
+        if win32gui.GetWindowText(hwnd) != "":
+            if hwnd == win32gui.GetForegroundWindow():
+                send_keys_to_application(hwnd)
+                time.sleep(interval)
+        else: 
+            running = False
+            app_entry.config(state="normal")
+            toggle_button.config(text="Start Waving 🌊!")
+            status_label.config(text="😎! yet to wave..")  # Update status label
+            messagebox.showinfo("CursorWave Error", f" window not found!")
+            
 
 # Function to start the simulation in a separate thread
 def toggle_simulation():
     global running
     application_name = app_entry.get()  # Get the application name from the input field
-    if application_name or running:
-        hwnd = find_window_by_title(application_name)
-        if hwnd:
+    if application_name:
+        hwnds = find_windows_by_title(application_name)  # Get all matching window handles
+        if hwnds:
             if not running:
                 running = True
+                app_entry.config(state="disabled")
                 try:
-                    interval = float(0.5)  # Set interval to 1 second
-                    threading.Thread(target=simulate_keypresses, args=(application_name, interval)).start()  # Run in a separate thread
+                    interval = float(0.0)  # Set interval to 0.5 seconds
+                    threading.Thread(target=simulate_keypresses, args=(hwnds[0], interval)).start()  # Run in a separate thread
                     status_label.config(text=f"🌊🌊🌊 wavingggg in {application_name}!")  # Update status label
                     toggle_button.config(text="Stop Waving ✋!")
-                    #messagebox.showinfo("CursorWave Info", f"Waving started in {application_name}!")
                 except ValueError:
-                    messagebox.showerror("CursorWave Error", "Waving not started!!")
+                    app_entry.config(state="normal")
+                    messagebox.showerror("CursorWave Error", f"Waving not started on {win32gui.GetWindowText(hwnds[0])}!!")
             else:
                 running = False
+                app_entry.config(state="normal")
                 toggle_button.config(text="Start Waving 🌊!")
                 status_label.config(text="😎! yet to wave..")  # Update status label
-                messagebox.showinfo("CursorWave Info", f"Waving stopped in {application_name}!")
+                messagebox.showinfo("CursorWave Info", f"{win32gui.GetWindowText(hwnds[0])} Waving stopped!")
         else:
-            messagebox.showinfo("CursorWave Info", f"Application {application_name} not found!! 🤐")
+            app_entry.config(state="normal")
+            messagebox.showinfo("CursorWave Info", f"No instances of '{application_name}' found!")
     else:
+        app_entry.config(state="normal")
         messagebox.showinfo("CursorWave Error", "Please enter an application name!")
 
-# Function to open Google in a web browser
-def open_google():
+# Function to open GitHub in a web browser
+def open_github():
     webbrowser.open("https://github.com/sasibhumaraju")
 
 # Create the GUI window
@@ -130,10 +146,10 @@ toggle_button.pack(pady=20)
 status_label = tk.Label(frame, text="😎! yet to wave..", bg='#f0f0f0')
 status_label.pack(pady=10)
 
-# Link to Google
-google_link = tk.Label(frame, font=bold_font, text="Say thanks 💖 to @sasibhumaraju", fg="#FF69B4", cursor="hand2", bg='#f0f0f0')
-google_link.pack(pady=10)
-google_link.bind("<Button-1>", lambda e: open_google())  # Bind the click event
+# Link to GitHub
+github_link = tk.Label(frame, font=bold_font, text="Say thanks 💖 to @sasibhumaraju", fg="#FF69B4", cursor="hand2", bg='#f0f0f0')
+github_link.pack(pady=10)
+github_link.bind("<Button-1>", lambda e: open_github())  # Bind the click event
 
 def on_closing():
     global running
